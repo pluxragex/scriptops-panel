@@ -22,3 +22,5 @@
 - `npm run start:dev` — dev-сервер NestJS
 - `npm run build` — сборка
 - `npm run test` — тесты
+
+- Co-authored-by: boun7yy <hawiitearz@gmail.com>
