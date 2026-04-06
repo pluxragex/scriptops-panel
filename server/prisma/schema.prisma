@@ -1,0 +1,614 @@
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  role      UserRole @default(USER)
+
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+
+  isActive  Boolean  @default(true)
+  isBlocked Boolean  @default(false)
+
+
+  emailVerified Boolean   @default(false)
+  emailToken    String?
+  emailTokenExpires DateTime?
+
+
+  telegramUserId BigInt?  @unique
+
+
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
+
+
+  scripts     Script[]
+  auditLogs   AuditLog[]
+  refreshTokens RefreshToken[]
+  sessions    Session[]
+  pendingLogins PendingLogin[]
+  pendingActions PendingAction[]
+  scriptAccess ScriptUserAccess[]
+  news        News[]
+  newsViews   NewsView[]
+
+  @@map("users")
+}
+
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+
+model Server {
+  id          String      @id @default(cuid())
+  name        String
+  host        String
+  port        Int         @default(22)
+  sshUser     String      @default("deploy")
+  authMethod  AuthMethod  @default(KEY)
+  keyId       String?
+
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  note        String?
+  isActive    Boolean     @default(true)
+
+
+  key         ServerKey?  @relation(fields: [keyId], references: [id])
+  scripts     Script[]
+
+  @@map("servers")
+}
+
+
+enum AuthMethod {
+  KEY
+  PASSWORD
+}
+
+
+model ServerKey {
+  id                String   @id @default(cuid())
+  label             String
+  privateKeyEncrypted String @db.Text
+  publicKey         String?  @db.Text
+
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  isActive          Boolean  @default(true)
+
+
+  servers           Server[]
+
+  @@map("server_keys")
+}
+
+
+model Script {
+  id              String        @id @default(cuid())
+  name            String
+  description     String?
+
+
+  type            ScriptType    @default(CUSTOM)
+
+
+  repoUrl         String?
+  uploadedPath    String?
+
+
+  ownerId         String
+  serverId        String
+
+
+  pathOnServer    String
+  pm2Name         String
+
+
+  status          ScriptStatus  @default(STOPPED)
+  pid             Int?
+  uptime          Int?
+  version         String?
+
+
+  expiryDate      DateTime?
+
+
+  frozenAt        DateTime?
+  frozenUntil     DateTime?
+  ownerFrozenOnce Boolean       @default(false)
+
+
+  autoUpdate      Boolean       @default(false)
+
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+
+  owner           User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  server          Server        @relation(fields: [serverId], references: [id])
+  auditLogs       AuditLog[]
+  deployments     Deployment[]
+  userAccess      ScriptUserAccess[]
+  settings        ScriptSettings?
+
+  @@index([ownerId])
+  @@index([serverId])
+  @@index([status])
+  @@index([expiryDate])
+  @@index([createdAt])
+  @@map("scripts")
+}
+
+
+enum ScriptType {
+  CUSTOM
+  CYBER_LEAGUE
+  WEEKLY_CUP
+  ALLIANCE_BOT
+}
+
+
+enum ScriptStatus {
+  STOPPED
+  STARTING
+  RUNNING
+  STOPPING
+  ERROR
+  UNKNOWN
+  EXPIRED
+}
+
+
+model Deployment {
+  id          String            @id @default(cuid())
+  scriptId    String
+
+
+  type        DeploymentType
+  version     String?
+
+
+  status      DeploymentStatus  @default(PENDING)
+  progress    Int               @default(0)
+
+
+  details     Json?
+  error       String?
+
+
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  completedAt DateTime?
+
+
+  script      Script            @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+
+  @@index([scriptId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("deployments")
+}
+
+
+enum DeploymentType {
+  UPLOAD
+  GIT_PULL
+  MANUAL
+}
+
+
+enum DeploymentStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+
+model AuditLog {
+  id            String      @id @default(cuid())
+  actorId       String
+  actionType    ActionType
+  targetScriptId String?
+
+
+  details       Json?
+  ipAddress     String?
+  userAgent     String?
+
+
+  createdAt     DateTime    @default(now())
+
+
+  actor         User        @relation(fields: [actorId], references: [id])
+  targetScript  Script?     @relation(fields: [targetScriptId], references: [id])
+
+  @@index([actorId])
+  @@index([targetScriptId])
+  @@index([actionType])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+
+enum ActionType {
+
+  LOGIN
+  LOGOUT
+  REGISTER
+
+
+  SCRIPT_CREATE
+  SCRIPT_DELETE
+  SCRIPT_START
+  SCRIPT_STOP
+  SCRIPT_RESTART
+  SCRIPT_DEPLOY
+  SCRIPT_EXPIRED
+
+
+  SCRIPT_ISSUE
+  SCRIPT_REVOKE
+  SCRIPT_EXTEND
+  SCRIPT_FREEZE
+  SCRIPT_UNFREEZE
+
+
+  SCRIPT_ACCESS_GRANT
+  SCRIPT_ACCESS_REVOKE
+
+
+  SERVER_ADD
+  SERVER_UPDATE
+  SERVER_DELETE
+  SERVER_TEST_CONNECTION
+
+
+  SERVER_KEY_ADD
+  SERVER_KEY_DELETE
+  SERVER_KEY_UPDATE
+
+
+  USER_CREATE
+  USER_BLOCK
+  USER_UNBLOCK
+  USER_ROLE_CHANGE
+  USER_PASSWORD_CHANGE
+
+
+  SCRIPT_SETTINGS_UPDATE
+
+
+  NEWS_CREATE
+  NEWS_UPDATE
+  NEWS_DELETE
+
+
+  SCHEDULED_TASK_CREATE
+  SCHEDULED_TASK_UPDATE
+  SCHEDULED_TASK_DELETE
+  SCHEDULED_TASK_RUN
+
+
+  QUEUE_CLEAR
+}
+
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique @db.VarChar(64)
+  userId    String
+  expiresAt DateTime
+
+
+  createdAt DateTime @default(now())
+  isRevoked Boolean  @default(false)
+
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+
+model FileUpload {
+  id          String   @id @default(cuid())
+  filename    String
+  originalName String
+  mimeType    String
+  size        Int
+  path        String
+
+
+  createdAt   DateTime @default(now())
+  uploadedBy  String?
+
+  @@map("file_uploads")
+}
+
+
+model ScriptUserAccess {
+  id        String   @id @default(cuid())
+  scriptId  String
+  userId    String
+  grantedBy String
+
+
+  canView   Boolean  @default(true)
+  canStart  Boolean  @default(false)
+  canStop   Boolean  @default(false)
+  canRestart Boolean @default(false)
+  canViewLogs Boolean @default(false)
+  canManageSettings Boolean @default(false)
+
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+
+  script    Script   @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([scriptId, userId])
+  @@map("script_user_access")
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  type      String   @default("string")
+
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@map("system_settings")
+}
+
+
+model ScriptSettings {
+  id        String   @id @default(cuid())
+  scriptId  String   @unique
+
+
+  botToken  String?
+
+
+  cyberLeagueSettings Json?
+
+
+  weeklyCupSettings Json?
+
+
+  familyBotSettings Json?
+
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+
+  script    Script   @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+
+  @@map("script_settings")
+}
+
+
+model News {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @db.Text
+  excerpt     String?  @db.Text
+  slug        String   @unique
+
+
+  imageUrl    String?
+  videoUrl    String?
+
+
+  isPublished Boolean  @default(false)
+  isFeatured  Boolean  @default(false)
+  priority    Int      @default(0)
+
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  publishedAt DateTime?
+
+
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+
+
+  views       NewsView[]
+
+  @@index([isPublished])
+  @@index([isFeatured])
+  @@index([publishedAt])
+  @@index([slug])
+  @@map("news")
+}
+
+
+model NewsView {
+  id        String   @id @default(cuid())
+  newsId    String
+  userId    String?
+  ipAddress String?
+  userAgent String?
+
+
+  viewedAt  DateTime @default(now())
+
+
+  news      News     @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([newsId, userId])
+  @@map("news_views")
+}
+
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique @db.VarChar(64)
+  ipAddress String?
+  userAgent String?
+  deviceInfo String?
+  location  String?
+  isBotSession Boolean @default(false)
+
+
+  createdAt DateTime @default(now())
+  lastActivityAt DateTime @default(now())
+  expiresAt DateTime
+
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isBotSession])
+  @@map("sessions")
+}
+
+
+model PendingLogin {
+  id        String   @id @default(cuid())
+  userId    String
+  loginToken String  @unique
+  ipAddress String?
+  userAgent String?
+  deviceInfo String?
+  method    String
+
+
+  status    PendingLoginStatus @default(PENDING)
+  approvedAt DateTime?
+
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([loginToken])
+  @@map("pending_logins")
+}
+
+enum PendingLoginStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+model PendingAction {
+  id        String   @id @default(cuid())
+  userId    String
+  actionToken String @unique
+  actionType String
+  ipAddress String?
+  userAgent String?
+
+
+  status    PendingActionStatus @default(PENDING)
+  approvedAt DateTime?
+
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([actionToken])
+  @@map("pending_actions")
+}
+
+enum PendingActionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+
+model ScheduledTask {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+
+
+  taskType    ScheduledTaskType
+
+
+  cronExpression String
+  timezone      String  @default("Europe/Moscow")
+
+
+  parameters   Json?
+
+
+  isActive     Boolean  @default(true)
+  isRunning    Boolean  @default(false)
+
+
+  lastRunAt    DateTime?
+  lastRunStatus String?
+  lastRunError String?   @db.Text
+  runCount     Int      @default(0)
+  failCount    Int      @default(0)
+
+
+  nextRunAt    DateTime?
+
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  createdBy    String?
+
+  @@index([taskType])
+  @@index([isActive])
+  @@index([nextRunAt])
+  @@map("scheduled_tasks")
+}
+
+
+enum ScheduledTaskType {
+  CHECK_AUTO_UPDATE
+  CHECK_SCRIPT_EXPIRY
+  AUTO_RELOAD_SCRIPTS
+  CLEANUP_OLD_LOGS
+  BACKUP_DATABASE
+  HEALTH_CHECK
+}

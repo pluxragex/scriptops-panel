@@ -1,0 +1,27 @@
+-- AlterTable
+ALTER TABLE `audit_logs` MODIFY `actionType` ENUM('LOGIN', 'LOGOUT', 'REGISTER', 'SCRIPT_CREATE', 'SCRIPT_DELETE', 'SCRIPT_START', 'SCRIPT_STOP', 'SCRIPT_RESTART', 'SCRIPT_DEPLOY', 'SCRIPT_ISSUE', 'SCRIPT_REVOKE', 'SCRIPT_EXTEND', 'SCRIPT_ACCESS_GRANT', 'SCRIPT_ACCESS_REVOKE', 'SERVER_ADD', 'SERVER_UPDATE', 'SERVER_DELETE', 'SERVER_TEST_CONNECTION', 'SERVER_KEY_ADD', 'SERVER_KEY_DELETE', 'SERVER_KEY_UPDATE', 'USER_BLOCK', 'USER_UNBLOCK', 'USER_ROLE_CHANGE') NOT NULL;
+
+-- AlterTable
+ALTER TABLE `scripts` ADD COLUMN `type` ENUM('CUSTOM', 'CYBER_LEAGUE', 'WEEKLY_CUP', 'ALLIANCE_BOT') NOT NULL DEFAULT 'CUSTOM';
+
+-- AlterTable
+ALTER TABLE `server_keys` MODIFY `privateKeyEncrypted` TEXT NOT NULL,
+    MODIFY `publicKey` TEXT NULL;
+
+-- CreateTable
+CREATE TABLE `script_settings` (
+    `id` VARCHAR(191) NOT NULL,
+    `scriptId` VARCHAR(191) NOT NULL,
+    `botToken` VARCHAR(191) NULL,
+    `cyberLeagueSettings` JSON NULL,
+    `weeklyCupSettings` JSON NULL,
+    `familyBotSettings` JSON NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `script_settings_scriptId_key`(`scriptId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `script_settings` ADD CONSTRAINT `script_settings_scriptId_fkey` FOREIGN KEY (`scriptId`) REFERENCES `scripts`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
