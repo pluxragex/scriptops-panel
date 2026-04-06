@@ -23,4 +23,4 @@
 - `npm run build` — сборка
 - `npm run test` — тесты
 
-- Co-authored-by: boun7yy <hawiitearz@gmail.com>
+Co-authored-by: boun7yy <hawiitearz@gmail.com>
