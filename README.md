@@ -37,8 +37,8 @@ A modular backend (auth/users/scripts/admin/news/ssh/common) makes the system pr
 
 ### 1) Clone repository
 ```bash
-git clone <YOUR_REPOSITORY_URL>
-cd 222-panel.222prod.cc
+git clone https://github.com/pluxragex/scriptops-panel.git
+cd scriptops-panel
 ```
 
 ### 2) Install dependencies
